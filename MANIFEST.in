@@ -6,3 +6,5 @@
 # Copyright (c) 2015, Parham Negahdar <pnegahdar@gmail.com>
 
 recursive-exclude tests *
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
