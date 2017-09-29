@@ -11,16 +11,21 @@ from atomicwrites import atomic_write
 from virtualenv import path_locations
 
 
+class VirtualEnvNotCreatedException(Exception):
+    pass
+
+
 def file_md5(path):
-    return hashlib.md5(open(path, 'rb').read()).hexdigest()
+    with open(path, 'rb') as buff:
+        return hashlib.md5(buff.read()).hexdigest()
 
 
 class VirtualEnv(object):
     execfile_name = 'activate_this.py'
 
-    def __init__(self, venv_name, venv_dirs, addon_env_vars=None, python=None, venv_hash=None):
+    def __init__(self, venv_name, venv_dir, addon_env_vars=None, python=None, venv_hash=None):
         self.venv_name = venv_name
-        self.venv_dirs = venv_dirs
+        self.venv_dir = venv_dir
         self.sys_prefix = sys.prefix
         self.python = python
         self.sys_path = copy.copy(sys.path)
@@ -30,7 +35,7 @@ class VirtualEnv(object):
 
     @property
     def path(self):
-        return os.path.join(self.venv_dirs, self.venv_name)
+        return os.path.join(self.venv_dir, self.venv_name)
 
     def content_path(self, *paths):
         return os.path.join(self.path, *paths)
@@ -48,6 +53,8 @@ class VirtualEnv(object):
         return self.content_path('.inenv.cache')
 
     def save_cache_file(self, data):
+        if not self.exists:
+            raise VirtualEnvNotCreatedException('Must initialize virtual environment!')
         with atomic_write(self.cache_file, overwrite=True) as cache_file:
             json.dump(data, cache_file)
 
@@ -70,8 +77,16 @@ class VirtualEnv(object):
         return os.path.isfile(self.execfile_path)
 
     def create_if_dne(self):
+        """Creates a virtual environment if it does not exist.
+
+        Returns
+        -------
+        boolean, whether an environment was created
+        """
         if not self.exists:
             self.create()
+            return True
+        return False
 
     def delete(self):
         shutil.rmtree(self.path)
@@ -95,10 +110,13 @@ class VirtualEnv(object):
         return False
 
     def prep(self):
-        if not self.exists:
-            self.create()
-        else:
-            self.rebuild_if_hash_changed()
+        """Prep virtualenv to be up to date.
+
+        Returns
+        -------
+        boolean, whether environment was updated at all
+        """
+        return self.create_if_dne() or self.rebuild_if_hash_changed()
 
     def install_requirements_file(self, path_to_file, skip_cached=True, always_exit=False,
                                   exit_if_failed=True, stdin=sys.stdin, stdout=sys.stdout,
