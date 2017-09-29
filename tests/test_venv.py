@@ -75,15 +75,17 @@ class TestVirtualEnvExists(object):
         proc.wait()
         assert proc.returncode == 0
         venv_dir, _ = proc.communicate()
-        assert venv_dir.strip() != self.venv.path
+        assert venv_dir.decode('utf-8').strip() != self.venv.path
 
         # Now compare to our test environment
         proc = self.venv.run(echo_virtualenv_cmd, stdout=subprocess.PIPE)
         assert proc.returncode == 0
         test_venv_dir, _ = proc.communicate()
-        assert test_venv_dir.strip() == self.venv.path
+        assert test_venv_dir.decode('utf-8').strip() == self.venv.path
 
     def test_run_python(self):
         proc = self.venv.run(['python', '-c', '"print(1 + 1)"'], stdout=subprocess.PIPE)
         assert proc.returncode == 0
-        assert proc.communicate() == ('2\n', None)
+        stdout, stderr = proc.communicate()
+        assert stdout.decode('utf-8') == '2\n'
+        assert stderr is None
